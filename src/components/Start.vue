@@ -37,6 +37,14 @@
         <div class="question-container" v-if="currentQuestion">
           <h2>{{ currentQuestion.text }}</h2>
 
+             <!-- PDF Button for Q3a and Q3a_nonvoyageur -->
+             <button
+            v-if="['QNV2A', 'QP3A'].includes(currentQuestion.id)"
+            @click="showPdf = true"
+            class="btn-pdf"
+          >
+            Voir le plan du parking
+          </button>
           <!-- Standard options -->
           <div
             v-if="
@@ -152,6 +160,21 @@
     <div class="footer">
       <AdminDashboard :questions="questions" />
     </div>
+    <!-- PDF Modal -->
+    <div v-if="showPdf" class="modal">
+      <div class="modal-content pdf-content">
+        <span class="close" @click="showPdf = false">&times;</span>
+        <iframe
+          :src="pdfUrl"
+          width="100%"
+          height="500px"
+          type="application/pdf"
+        >
+          This browser does not support PDFs. Please download the PDF to view
+          it.
+        </iframe>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -181,11 +204,11 @@ const isSurveyComplete = ref(false);
 const selectedCommune = ref("");
 const stationInput = ref("");
 const filteredStations = ref([]);
-
+const showPdf = ref(false);
 const streetSelections = ref({});
 const communeSelections = ref({});
 const postalCodePrefixes = ref({});
-
+const pdfUrl = ref("/Plan.pdf");
 // Firestore refs
 const surveyCollectionRef = collection(db, "Dunkerque");
 const counterDocRef = doc(db, "counterDunkerque", "surveyCounter");
