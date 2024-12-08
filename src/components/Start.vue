@@ -87,6 +87,16 @@
               {{ isLastQuestion ? "Terminer" : "Suivant" }}
             </button>
           </div>
+          <div v-if="currentQuestion.usesGareSelector">
+            <GareSelector v-model="gareSelections[currentQuestion.id]" />
+            <button
+              @click="handleGareSelection"
+              class="btn-next"
+              :disabled="!gareSelections[currentQuestion.id]"
+            >
+              {{ isLastQuestion ? "Terminer" : "Suivant" }}
+            </button>
+          </div>
           <!-- Free Text Questions -->
           <div v-if="currentQuestion.freeText">
             <div class="input-container">
@@ -153,7 +163,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { questions } from "./surveyQuestions.js";
 import CommuneSelector from "./CommuneSelector.vue";
 import AdminDashboard from "./AdminDashboard.vue";
-import StreetSelector from './StreetSelector.vue';
+import StreetSelector from "./StreetSelector.vue";
+import GareSelector from './GareSelector.vue';
 
 // Refs
 const persistentQ1 = ref(null);
@@ -178,6 +189,20 @@ const postalCodePrefixes = ref({});
 // Firestore refs
 const surveyCollectionRef = collection(db, "Dunkerque");
 const counterDocRef = doc(db, "counterDunkerque", "surveyCounter");
+const gareSelections = ref({});
+
+const handleGareSelection = () => {
+  if (currentQuestion.value.usesGareSelector) {
+    const questionId = currentQuestion.value.id;
+    const selectedValue = gareSelections.value[questionId];
+
+    if (selectedValue && selectedValue.trim() !== "") {
+      answers.value[questionId] = selectedValue;
+      nextQuestion();
+      gareSelections.value[questionId] = "";
+    }
+  }
+};
 
 const handleStreetSelection = () => {
   if (currentQuestion.value.usesStreetSelector) {
