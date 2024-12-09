@@ -10,7 +10,7 @@ export const questions = [
 	},
 	{
 		id: "QCo0",
-		text: "Allez-vous monter dans un train ou venez vous de descendre d'un train ?",
+		text: "Allez-vous prendre un train ou êtes-vous descendu d'un train ?",
 		options: [
 			{ id: 1, text: "Oui", next: "QCo1" },
 			{ id: 2, text: "Non", next: "QNV1" }
@@ -75,7 +75,7 @@ export const questions = [
 	},
 	{
 		id: "QNV2A_Autre",
-		text: "Précisez la raison",
+		text: "Précisez le lieu",
 		freeText: true,
 		next: "QNV3"
 	},
@@ -242,7 +242,7 @@ export const questions = [
 	},
 	{
 		id: "QP3A_Autre",
-		text: "Précisez la raison",
+		text: "Précisez le lieu",
 		freeText: true,
 		next: "QP4"
 	},
