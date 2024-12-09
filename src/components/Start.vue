@@ -19,6 +19,18 @@
         </button>
       </div>
 
+      <div v-if="currentStep === 'poste'">
+        <h2>Zone de l'enquête</h2>
+        <button
+          v-for="(option, index) in firstQuestion.options"
+          :key="index"
+          @click="selectPoste(option)"
+          class="btn-option"
+        >
+          {{ option.text }}
+        </button>
+      </div>
+
       <!-- Start Survey Step -->
       <div v-else-if="currentStep === 'start'" class="start-survey-container">
         <h2>
@@ -27,6 +39,7 @@
           souhaiterait en savoir plus sur votre déplacement en cours.<br />
           Auriez-vous quelques secondes à nous accorder ? »
         </h2>
+        <h2></h2>
         <button @click="startSurvey" class="btn-next">
           COMMENCER QUESTIONNAIRE
         </button>
@@ -37,8 +50,8 @@
         <div class="question-container" v-if="currentQuestion">
           <h2>{{ currentQuestion.text }}</h2>
 
-             <!-- PDF Button for Q3a and Q3a_nonvoyageur -->
-             <button
+          <!-- PDF Button for Q3a and Q3a_nonvoyageur -->
+          <button
             v-if="['QNV2A', 'QP3A'].includes(currentQuestion.id)"
             @click="showPdf = true"
             class="btn-pdf"
@@ -187,7 +200,7 @@ import { questions } from "./surveyQuestions.js";
 import CommuneSelector from "./CommuneSelector.vue";
 import AdminDashboard from "./AdminDashboard.vue";
 import StreetSelector from "./StreetSelector.vue";
-import GareSelector from './GareSelector.vue';
+import GareSelector from "./GareSelector.vue";
 
 // Refs
 const persistentQ1 = ref(null);
@@ -213,6 +226,8 @@ const pdfUrl = ref("/Plan.pdf");
 const surveyCollectionRef = collection(db, "Dunkerque");
 const counterDocRef = doc(db, "counterDunkerque", "surveyCounter");
 const gareSelections = ref({});
+const savedPoste = ref(null);
+const firstQuestion = questions.find(q => q.id === "Poste");
 
 const handleGareSelection = () => {
   if (currentQuestion.value.usesGareSelector) {
@@ -314,10 +329,16 @@ const progress = computed(() => {
 // Methods
 const setEnqueteur = () => {
   if (enqueteur.value.trim() !== "") {
-    currentStep.value = "start";
+    currentStep.value = "poste"; // instead of "start"
     currentQuestionIndex.value = persistentQ1.value ? 1 : 0;
     isEnqueteurSaved.value = true;
   }
+};
+
+const selectPoste = (option) => {
+  savedPoste.value = option.id;
+  answers.value["Poste"] = option.id;
+  currentStep.value = "start";
 };
 
 const startSurvey = () => {
@@ -327,7 +348,7 @@ const startSurvey = () => {
     second: "2-digit",
   });
   currentStep.value = "survey";
-  currentQuestionIndex.value = 0; // Start from Q2 after the start message
+  currentQuestionIndex.value = 1; // Start from Q2 after the start message
   isSurveyComplete.value = false;
 };
 
@@ -459,6 +480,7 @@ const finishSurvey = async () => {
       minute: "2-digit",
       second: "2-digit",
     }),
+    Poste: savedPoste.value,
     PORT_ID_ORIGIN: answers.value.PORT_ID_ORIGIN || "",
     PORT_ID_DESTINATION: answers.value.PORT_ID_DESTINATION || "",
   };
