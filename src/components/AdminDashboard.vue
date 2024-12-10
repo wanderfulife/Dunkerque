@@ -22,10 +22,21 @@
     <!-- Admin Dashboard Modal -->
     <div v-if="showAdminDashboard" class="modal">
       <div class="modal-content admin-dashboard">
-        <button class="close" @click="showAdminDashboard = false">
-          &times;
-        </button>
+        <button class="close" @click="showAdminDashboard = false">&times;</button>
         <h2>Tableau de Bord Admin</h2>
+        
+        <!-- Added filter checkbox -->
+        <div style="margin-bottom: 20px;">
+          <label style="color: #ecf0f1; display: flex; align-items: center; gap: 10px;">
+            <input
+              type="checkbox"
+              v-model="showTodayOnly"
+              style="margin: 0;"
+            >
+            Afficher uniquement les enquêtes d'aujourd'hui
+          </label>
+        </div>
+
         <div class="dashboard-content">
           <div class="dashboard-card total">
             <h3>Total des Enquêtes</h3>
@@ -48,11 +59,10 @@
     </div>
   </div>
 </template>
-  
 <script setup>
-import { ref, computed } from "vue";
+import { ref, watch } from "vue";
 import * as XLSX from "xlsx";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 const props = defineProps({
@@ -67,8 +77,18 @@ const showAdminDashboard = ref(false);
 const password = ref("");
 const totalSurveys = ref(0);
 const surveysByEnqueteur = ref({});
+const showTodayOnly = ref(false);
 
 const surveyCollectionRef = collection(db, "Dunkerque");
+
+const getTodayDateString = () => {
+  const now = new Date();
+  // Format as DD-MM-YYYY to match your Firebase date format
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
 const signIn = () => {
   if (password.value === "admin123") {
@@ -81,24 +101,44 @@ const signIn = () => {
 };
 
 const fetchDashboardData = async () => {
-  const querySnapshot = await getDocs(surveyCollectionRef);
-  totalSurveys.value = querySnapshot.size;
+  try {
+    let queryRef = surveyCollectionRef;
+    
+    if (showTodayOnly.value) {
+      const today = getTodayDateString();
+      console.log('Filtering for date:', today); // Debug log
+      queryRef = query(surveyCollectionRef, where("DATE", "==", today));
+    }
 
-  const enqueteurCounts = {};
-  querySnapshot.forEach((doc) => {
-    const data = doc.data();
-    const enqueteur = data.ENQUETEUR || "Unknown";
-    enqueteurCounts[enqueteur] = (enqueteurCounts[enqueteur] || 0) + 1;
-  });
+    const querySnapshot = await getDocs(queryRef);
+    totalSurveys.value = querySnapshot.size;
 
-  surveysByEnqueteur.value = enqueteurCounts;
+    const enqueteurCounts = {};
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      console.log('Document date:', data.DATE); // Debug log
+      const enqueteur = data.ENQUETEUR || "Unknown";
+      enqueteurCounts[enqueteur] = (enqueteurCounts[enqueteur] || 0) + 1;
+    });
+
+    surveysByEnqueteur.value = enqueteurCounts;
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+    alert("Erreur lors de la récupération des données");
+  }
 };
 
 const downloadData = async () => {
   try {
-    const querySnapshot = await getDocs(surveyCollectionRef);
+    let queryRef = surveyCollectionRef;
     
-    // Define the header order as specified
+    if (showTodayOnly.value) {
+      const today = getTodayDateString();
+      queryRef = query(surveyCollectionRef, where("DATE", "==", today));
+    }
+
+    const querySnapshot = await getDocs(queryRef);
+    
     const headerOrder = [
       "ID_questionnaire",
       "ENQUETEUR",
@@ -108,7 +148,6 @@ const downloadData = async () => {
       "HEURE_FIN"
     ];
 
-    // Add question IDs to header order
     props.questions.forEach((question) => {
       if (question.usesCommuneSelector) {
         headerOrder.push(
@@ -123,16 +162,13 @@ const downloadData = async () => {
       }
     });
 
-    // Transform the data
     const data = querySnapshot.docs.map((doc) => {
       const docData = doc.data();
-      // Create an object with all headers initialized to empty strings
       const row = headerOrder.reduce((acc, key) => {
         acc[key] = "";
         return acc;
       }, {});
 
-      // Fill in the actual values from docData
       Object.keys(docData).forEach((key) => {
         if (headerOrder.includes(key)) {
           row[key] = docData[key];
@@ -142,28 +178,26 @@ const downloadData = async () => {
       return row;
     });
 
-    // Create worksheet with ordered headers
     const worksheet = XLSX.utils.json_to_sheet(data, { header: headerOrder });
-
-    // Set column widths
     const colWidths = headerOrder.map(() => ({ wch: 20 }));
     worksheet["!cols"] = colWidths;
 
-    // Create workbook and append worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Survey Data");
 
-    // Generate timestamp for filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    
-    // Write file
-    XLSX.writeFile(workbook, `Dunkerque_Survey_Data_${timestamp}.xlsx`);
-    
-    console.log("File downloaded successfully");
+    const filePrefix = showTodayOnly.value ? "Today_" : "";
+    XLSX.writeFile(workbook, `${filePrefix}Dunkerque_Survey_Data_${timestamp}.xlsx`);
   } catch (error) {
     console.error("Error downloading data:", error);
+    alert("Erreur lors du téléchargement des données");
   }
 };
+
+// Watch for changes in showTodayOnly to refresh data
+watch(showTodayOnly, () => {
+  fetchDashboardData();
+});
 </script>
 <style scoped>
 .btn-signin {
